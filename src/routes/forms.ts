@@ -1,114 +1,84 @@
+import { redis } from '@devvit/redis';
 import { Hono } from 'hono';
 import type { UiResponse } from '@devvit/web/shared';
-import { context } from '@devvit/web/server';
-import { isT1, isT3 } from '@devvit/shared-types/tid.js';
-import { handleNuke, handleNukePost } from '../core/nuke';
-
-type NukeFormValues = {
-  remove?: boolean;
-  lock?: boolean;
-  skipDistinguished?: boolean;
-  targetId?: string;
-};
+import { context, reddit } from '@devvit/web/server';
 
 export const forms = new Hono();
 
-const normalizeValues = (values: NukeFormValues) => ({
-  remove: Boolean(values.remove),
-  lock: Boolean(values.lock),
-  skipDistinguished: Boolean(values.skipDistinguished),
-});
+forms.post('/removal-reason-flairs', async (c) => {
+  const subredditName = context.subredditName;
 
-const getTargetId = (values: NukeFormValues) => {
-  if (typeof values.targetId === 'string' && values.targetId.trim()) {
-    return values.targetId.trim();
-  }
+  let removalTitles;
+  try {
+    const removalReasons = await reddit.getSubredditRemovalReasons(subredditName);
 
-  return context.postId;
-};
+    removalTitles = new Set(
+      removalReasons.map((reason) => reason.title)
+    );
+  } catch (error) {
+    console.error(
+      'Failed to get subreddit removal reasons',
+      JSON.stringify({
+        error,
+      })
+    );
 
-forms.post('/mop-comment-submit', async (c) => {
-  const values = await c.req.json<NukeFormValues>();
-  console.log('values', values);
-  const normalized = normalizeValues(values);
-
-  if (!normalized.lock && !normalized.remove) {
     return c.json<UiResponse>(
       {
-        showToast: 'You must select either lock or remove.',
+        showToast: {
+          text: 'Failed to get subreddit removal reasons'
+        },
       },
       200
     );
   }
 
-  const targetId = getTargetId(values);
-  if (!isT1(targetId)) {
-    console.error('targetId is not a T1', targetId);
+  try {
+    const assignments: Record<string, string> = {};
+
+    const input = await c.req.json<Record<string, string>>();
+    for (const [fieldName, flairId] of Object.entries(input)) {
+      if (flairId.trim() === '') {
+        continue;
+      }
+
+      const title = fieldName.replace(/^flair_/, '');
+
+      if (removalTitles.has(title)) {
+        assignments[title] = flairId.trim();
+      }
+    }
+
+    const key = `removalReasonFlairs:${subredditName}`;
+
+    if (Object.keys(assignments).length === 0) {
+      await redis.del(key);
+    } else {
+      await redis.set(key, JSON.stringify(assignments));
+    }
+
     return c.json<UiResponse>(
       {
-        showToast: 'Mop failed! Please try again later.',
+        showToast: {
+          text: 'Removal reason post flair configuration saved',
+          appearance: 'success',
+        },
+      },
+      200
+    );
+  } catch (error) {
+    console.error(
+      'Failed to save removal reason post flair configuration',
+      JSON.stringify({ error })
+    );
+
+    return c.json<UiResponse>(
+      {
+        showToast: {
+          text: 'Failed to save removal reason post flair configuration'
+        },
       },
       200
     );
   }
-
-  const result = await handleNuke({
-    ...normalized,
-    commentId: targetId,
-    subredditId: context.subredditId,
-  });
-
-  console.log(
-    `Mop result - ${result.success ? 'success' : 'fail'} - ${result.message}`
-  );
-
-  return c.json<UiResponse>(
-    {
-      showToast: `${result.success ? 'Success' : 'Failed'} : ${result.message}`,
-    },
-    200
-  );
-});
-
-forms.post('/mop-post-submit', async (c) => {
-  const values = await c.req.json<NukeFormValues>();
-  console.log('values', values);
-  const normalized = normalizeValues(values);
-
-  if (!normalized.lock && !normalized.remove) {
-    return c.json<UiResponse>(
-      {
-        showToast: 'You must select either lock or remove.',
-      },
-      200
-    );
-  }
-
-  const targetId = getTargetId(values);
-  if (!isT3(targetId)) {
-    console.error('targetId is not a T3', targetId);
-    return c.json<UiResponse>(
-      {
-        showToast: 'Mop failed! Please try again later.',
-      },
-      200
-    );
-  }
-
-  const result = await handleNukePost({
-    ...normalized,
-    postId: targetId,
-    subredditId: context.subredditId,
-  });
-
-  console.log(
-    `Mop result - ${result.success ? 'success' : 'fail'} - ${result.message}`
-  );
-
-  return c.json<UiResponse>(
-    {
-      showToast: `${result.success ? 'Success' : 'Failed'} : ${result.message}`,
-    },
-    200
-  );
 });

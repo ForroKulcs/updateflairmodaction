@@ -10,7 +10,7 @@ const app = new Hono();
 const internal = new Hono();
 
 internal.route('/menu', menu);
-internal.route('/form', forms);
+internal.route('/forms', forms);
 internal.route('/triggers', triggers);
 
 app.route('/api', api);

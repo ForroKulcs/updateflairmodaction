@@ -8,27 +8,20 @@
   "menu": {
     "items": [
       {
-        "label": "Mop comments",
-        "description": "Remove this comment and all child comments. This might take a few seconds to run.",
-        "location": "comment",
+        "label": "Configure Removal Reason Post Flairs",
+        "description": "Configure post flairs for custom removal reasons",
+        "location": ["subreddit"],
         "forUserType": "moderator",
-        "endpoint": "/internal/menu/mop-comment"
-      },
-      {
-        "label": "Mop post comments",
-        "description": "Remove all comments of this post. This might take a few seconds to run.",
-        "location": "post",
-        "forUserType": "moderator",
-        "endpoint": "/internal/menu/mop-post"
+        "endpoint": "/internal/menu/configure-removal-reason-post-flairs"
       }
     ]
   },
   "forms": {
-    "mopComment": "/internal/form/mop-comment-submit",
-    "mopPost": "/internal/form/mop-post-submit"
+    "removal-reason-flairs": "/internal/forms/removal-reason-flairs",
+    "configuration": "/internal/form/configuration-submit"
   },
   "triggers": {
-    "onAppInstall": "/internal/triggers/on-app-install"
+    "onModAction": "/internal/triggers/on-mod-action"
   },
   "scripts": {
     "build": "vite build",
@@ -36,5 +29,34 @@
   },
   "permissions": {
     "reddit": true
+  },
+  "dev": {
+    "subreddit": "updateflairmodact_dev"
+  },
+  "settings": {
+    "subreddit": {
+      "approveFlairId": {
+        "type": "string",
+        "label": "Approve post flair ID"
+      },
+      "removeFlairId": {
+        "type": "string",
+        "label": "Remove post flair ID",
+        "helpText": "Flair assignments for removal reasons can be configured from the subreddit menu."
+      },
+      "spamFlairId": {
+        "type": "string",
+        "label": "Spam post flair ID"
+      },
+      "lockFlairId": {
+        "type": "string",
+        "label": "Lock post flair ID"
+      },
+      "ignoreModerators": {
+        "type": "string",
+        "label": "List of moderators to ignore (comma separated, not case sensitive, u/ is optional)",
+        "helpText": "u/flairassistant is always ignored to avoid infinite loops."
+      }
+    }
   }
 }

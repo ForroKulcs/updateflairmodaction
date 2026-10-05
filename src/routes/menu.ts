@@ -1,66 +1,79 @@
+import { redis } from '@devvit/redis';
+import { context, reddit } from '@devvit/web/server';
 import { Hono } from 'hono';
-import type { MenuItemRequest, UiResponse } from '@devvit/web/shared';
-import type { FormField } from '@devvit/shared-types/shared/form.js';
 
 export const menu = new Hono();
 
-const buildNukeFields = (targetId: string): FormField[] => [
-  {
-    name: 'targetId',
-    label: 'Target ID',
-    type: 'string',
-    helpText: 'Auto-filled from the selected item.',
-    required: true,
-    defaultValue: targetId,
-  },
-  {
-    name: 'remove',
-    label: 'Remove comments',
-    type: 'boolean',
-    defaultValue: true,
-  },
-  {
-    name: 'lock',
-    label: 'Lock comments',
-    type: 'boolean',
-    defaultValue: false,
-  },
-  {
-    name: 'skipDistinguished',
-    label: 'Skip distinguished comments',
-    type: 'boolean',
-    defaultValue: false,
-  },
-];
+menu.post('/configure-removal-reason-post-flairs', async (c) => {
+  const subredditName = context.subredditName;
 
-const buildNukeForm = (title: string, targetId: string) => ({
-  fields: buildNukeFields(targetId),
-  title,
-  acceptLabel: 'Mop',
-  cancelLabel: 'Cancel',
-});
+  let removalReasons;
+  try {
+    removalReasons = await reddit.getSubredditRemovalReasons(subredditName);
+  } catch (error) {
+    console.error(
+      'Failed to get subreddit removal reasons',
+      JSON.stringify({
+        error,
+      })
+    );
 
-menu.post('/mop-comment', async (c) => {
-  const request = await c.req.json<MenuItemRequest>();
-  console.log('request', request.targetId);
-  return c.json<UiResponse>(
-    {
-      showForm: {
-        name: 'mopComment',
-        form: buildNukeForm('Mop Comments', request.targetId),
+    return c.json<UiResponse>(
+      {
+        showToast: {
+          text: 'Failed to get subreddit removal reasons'
+        },
       },
-    },
-    200
-  );
-});
+      200
+    );
+  }
 
-menu.post('/mop-post', async (c) => {
-  const request = await c.req.json<MenuItemRequest>();
+  let validSaved: Record<string, string>;
+  let description: string;
+
+  if (removalReasons.length === 0) {
+    validSaved = {};
+
+    description =
+      'No removal reasons are currently configured for this subreddit.\n' +
+      `Configure removal reasons here:\n` +
+      `https://www.reddit.com/mod/${subredditName}/saved-responses/removals`;
+  } else {
+    const saved = JSON.parse(
+      (await redis.get(
+        `removalReasonFlairs:${subredditName}`
+      )) ?? '{}'
+    ) as Record<string, string>;
+
+    validSaved = Object.fromEntries(
+      Object.entries(saved).filter(([title]) =>
+        removalReasons.some((reason) => reason.title === title)
+      )
+    );
+
+    description =
+      'Assign post flairs to removal reasons. Leave the flair ID empty if the post flair should not be changed.\n' +
+      'Post flairs for basic mod actions can be configured on the config page:\n' +
+      `https://developers.reddit.com/r/${subredditName}/apps/updateflairmodaction`;
+  }
   return c.json<UiResponse>(
     {
       showForm: {
-        name: 'mopPost',
-        form: buildNukeForm('Mop Post Comments', request.targetId),
+        name: 'removal-reason-flairs',
+        form: {
+          title: 'Configure Removal Reason Post Flairs',
+          description,
+          fields: removalReasons.map((reason) => ({
+            type: 'string',
+            name: `flair_${reason.title}`,
+            label: reason.title,
+            helpText: reason.message,
+            defaultValue: validSaved[reason.title] ?? '',
+            required: false,
+          })),
+          acceptLabel: 'Save',
+          cancelLabel: 'Cancel',
+        },
       },
     },
     200

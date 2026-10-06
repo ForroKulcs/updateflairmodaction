@@ -32,25 +32,25 @@ triggers.post('/on-mod-action', async (c) => {
 
   const subreddit = input.subreddit;
   if (!subreddit) {
-    console.error('Mod action received without subreddit', JSON.stringify({action}));
+    console.error('Mod action received without subreddit', action);
     return success();
   }
 
   const subredditName = subreddit.name;
   if (!subredditName) {
-    console.error('Mod action received without subreddit.name', JSON.stringify({action}));
+    console.error('Mod action received without subreddit.name', action);
     return success();
   }
 
   const targetPost = input.targetPost;
   if (!targetPost) {
-    console.error('Mod action received without targetPost', JSON.stringify({action}));
+    console.error('Mod action received without targetPost', action);
     return success();
   }
 
   const targetPostId = targetPost.id;
   if (!targetPostId) {
-    console.error('Mod action received without targetPost.id', JSON.stringify({action}));
+    console.error('Mod action received without targetPost.id', action);
     return success();
   }
 
@@ -59,7 +59,7 @@ triggers.post('/on-mod-action', async (c) => {
       ? input.moderator
       : input.moderator?.name;
   if (!moderatorName) {
-    console.error('Mod action received without moderator', JSON.stringify({action, targetPostId}));
+    console.error('Mod action received without moderator', { action, targetPostId });
     return success();
   }
 
@@ -81,12 +81,27 @@ triggers.post('/on-mod-action', async (c) => {
     }
 
     let flairId: string | undefined;
-    let actionText: string;
 
     if (action === 'addremovalreason') {
-      let removalReasonTitle = input.description;
+      let removalReasonFlairs: Record<string, string>;
+      try {
+        removalReasonFlairs = JSON.parse(
+          (await redis.get(`removalReasonFlairs:${subredditName}`)) ?? '{}'
+        ) as Record<string, string>;
+      } catch (error) {
+        console.error('Failed to get removal reason post flair configuration', error);
+        return success();
+      }
 
-      if (removalReasonTitle === undefined || removalReasonTitle === '') {
+      if (Object.keys(removalReasonFlairs).length === 0) {
+        return success();
+      }
+
+      let removalReasonTitle: string | undefined = input.description;
+
+      if (removalReasonTitle) {
+        console.log('Removal reason title is available in modaction', removalReasonTitle);
+      } else {
         let modLogItems;
         let itemIndex = -1;
 
@@ -104,7 +119,6 @@ triggers.post('/on-mod-action', async (c) => {
             itemIndex = modLogItems.findIndex((modAction) => modAction.target.id === targetPostId);
         } catch (error) {
           console.error('Failed to get removal reason from modlog', error);
-
           return success();
         }
 
@@ -113,43 +127,19 @@ triggers.post('/on-mod-action', async (c) => {
 
           removalReasonTitle = modLogItem.description;
           if (!removalReasonTitle) {
-            console.log(
-              'Removal reason found in modlog without description',
-              JSON.stringify({
-                index: itemIndex,
-                modLogItem
-              })
-            );
+            console.log('Removal reason found in modlog without description', { index: itemIndex, modLogItem });
             return success();
           }
 
-          console.log(
-            'Removal reason found in modlog',
-            JSON.stringify({
-              index: itemIndex,
-              removalReasonTitle,
-              details: modLogItem.details,
-            })
-          );
+          console.log('Removal reason found in modlog', { index: itemIndex, removalReasonTitle, details: modLogItem.details });
         } else {
-          console.log('No removal reason found in modlog');
-
+          console.log('No removal reason found in modlog', { action, targetPostId });
           return success();
         }
       }
 
-      actionText = removalReasonTitle;
-
-      const saved = JSON.parse(
-        (await redis.get(
-          `removalReasonFlairs:${subredditName}`
-        )) ?? '{}'
-      ) as Record<string, string>;
-
-      flairId = saved[removalReasonTitle];
+      flairId = removalReasonFlairs[removalReasonTitle];
     } else {
-      actionText = action;
-
       const flairByAction: Record<string, string | undefined> = {
         approvelink: configuration.approveFlairId,
         removelink: configuration.removeFlairId,
@@ -166,18 +156,10 @@ triggers.post('/on-mod-action', async (c) => {
         postId: targetPostId,
         flairTemplateId: flairId,
       });
-      console.log('Post flair applied', JSON.stringify({action, targetPostId, moderatorName, flairId}));
+      console.log('Post flair applied', { action, targetPostId, moderatorName, flairId });
     }
   } catch (error) {
-    console.error(
-      'Failed to process mod action',
-      {
-        action,
-        targetPostId,
-        moderatorName,
-        error,
-      }
-    );
+    console.error('Failed to process mod action', { action, targetPostId, moderatorName, error });
   }
 
   return success();

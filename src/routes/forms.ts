@@ -16,12 +16,7 @@ forms.post('/removal-reason-flairs', async (c) => {
       removalReasons.map((reason) => reason.title)
     );
   } catch (error) {
-    console.error(
-      'Failed to get subreddit removal reasons',
-      JSON.stringify({
-        error,
-      })
-    );
+    console.error('Failed to get subreddit removal reasons', error);
 
     return c.json<UiResponse>(
       {
@@ -67,10 +62,7 @@ forms.post('/removal-reason-flairs', async (c) => {
       200
     );
   } catch (error) {
-    console.error(
-      'Failed to save removal reason post flair configuration',
-      JSON.stringify({ error })
-    );
+    console.error('Failed to save removal reason post flair configuration', error);
 
     return c.json<UiResponse>(
       {

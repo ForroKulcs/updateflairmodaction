@@ -12,7 +12,6 @@ Source: [https://github.com/ForroKulcs/updateflairmodaction](https://github.com/
   - Spam
   - Lock
 - Configure post flairs for subreddit removal reasons.
-- Configure a different flair for each action.
 - Ignore selected moderators.
 - `u/flairassistant` is always ignored to prevent infinite loops with [Flair Assistant](https://developers.reddit.com/apps/flairassistant).
 
@@ -20,10 +19,10 @@ Source: [https://github.com/ForroKulcs/updateflairmodaction](https://github.com/
 
 The basic moderation actions are configured in the app's subreddit settings:
 
-- Approve flair ID
-- Remove flair ID
-- Spam flair ID
-- Lock flair ID
+- Approve post flair ID
+- Remove post flair ID
+- Spam post flair ID
+- Lock post flair ID
 - Moderators to ignore
 
 Removal reason flairs are configured from the subreddit menu.

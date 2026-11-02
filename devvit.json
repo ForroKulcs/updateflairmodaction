@@ -9,7 +9,7 @@
     "items": [
       {
         "label": "Configure Removal Reason Post Flairs",
-        "description": "Configure post flairs for custom removal reasons",
+        "description": "Assign post flairs for custom removal reasons",
         "location": ["subreddit"],
         "forUserType": "moderator",
         "endpoint": "/internal/menu/configure-removal-reason-post-flairs"

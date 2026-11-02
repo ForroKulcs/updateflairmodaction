@@ -1,6 +1,6 @@
 # Update Flair on Mod Action
 
-A Reddit Devvit moderation app that automatically updates a post's flair when a moderator performs a configured moderation action.
+Moderation app for Reddit that automatically updates a post's flair when a moderator performs a configured moderation action.
 
 Source: [https://github.com/ForroKulcs/updateflairmodaction](https://github.com/ForroKulcs/updateflairmodaction)
 
@@ -25,7 +25,7 @@ The basic moderation actions are configured in the app's subreddit settings:
 - Lock post flair ID
 - Moderators to ignore
 
-Removal reason flairs are configured from the subreddit menu.
+Removal reason post flair IDs are configured from the subreddit menu.
 
 ## How It Works
 
@@ -37,6 +37,8 @@ For removal reasons, the app stores the configured flair assignments separately 
 
 For removal reasons, the app normally uses the removal reason supplied by the mod action event. If it is not available, the app looks up the corresponding action in the subreddit moderation log.
 
+If the removal reason cannot be determined, the post flair is not changed.
+
 Removal reason assignments are matched by **removal reason title**, not by removal reason ID.
 
-If the removal reason cannot be determined, the post flair is not changed.
+If multiple removal reasons have the same title, only one of them will be used to assign the post flair ID. Make sure there are no duplicate titles in the list of removal reasons.

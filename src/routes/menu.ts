@@ -1,6 +1,7 @@
 import { redis } from '@devvit/redis';
 import { context, reddit } from '@devvit/web/server';
 import { Hono } from 'hono';
+import type { UiResponse } from '@devvit/web/shared';
 
 export const menu = new Hono();
 
@@ -21,6 +22,16 @@ menu.post('/configure-removal-reason-post-flairs', async (c) => {
       },
       200
     );
+  }
+
+  const removalReasonTitles = new Set<string>();
+  const uniqueRemovalReasons: typeof removalReasons = [];
+
+  for (const reason of removalReasons) {
+    if (!removalReasonTitles.has(reason.title)) {
+      removalReasonTitles.add(reason.title);
+      uniqueRemovalReasons.push(reason);
+    }
   }
 
   let validRemovalReasonFlairs: Record<string, string>;
@@ -58,10 +69,11 @@ menu.post('/configure-removal-reason-post-flairs', async (c) => {
     }
 
     description =
-      'Assign post flairs to removal reasons. Leave the flair ID empty if the post flair should not be changed.\n' +
+      'Assign post flair IDs to removal reasons. Leave the flair ID empty if the post flair should not be changed.\n' +
       'Post flairs for basic mod actions can be configured on the config page:\n' +
       `https://developers.reddit.com/r/${subredditName}/apps/updateflairmodaction`;
   }
+
   return c.json<UiResponse>(
     {
       showForm: {
@@ -69,7 +81,7 @@ menu.post('/configure-removal-reason-post-flairs', async (c) => {
         form: {
           title: 'Configure Removal Reason Post Flairs',
           description,
-          fields: removalReasons.map((reason) => ({
+          fields: uniqueRemovalReasons.map((reason) => ({
             type: 'string',
             name: `flair_${reason.title}`,
             label: reason.title,

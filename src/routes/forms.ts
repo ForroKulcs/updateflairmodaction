@@ -1,18 +1,18 @@
 import { redis } from '@devvit/redis';
+import { context, reddit } from '@devvit/web/server';
 import { Hono } from 'hono';
 import type { UiResponse } from '@devvit/web/shared';
-import { context, reddit } from '@devvit/web/server';
 
 export const forms = new Hono();
 
 forms.post('/removal-reason-flairs', async (c) => {
   const subredditName = context.subredditName;
 
-  let removalTitles;
+  let removalReasonTitles;
   try {
     const removalReasons = await reddit.getSubredditRemovalReasons(subredditName);
 
-    removalTitles = new Set(
+    removalReasonTitles = new Set(
       removalReasons.map((reason) => reason.title)
     );
   } catch (error) {
@@ -39,7 +39,7 @@ forms.post('/removal-reason-flairs', async (c) => {
 
       const title = fieldName.replace(/^flair_/, '');
 
-      if (removalTitles.has(title)) {
+      if (removalReasonTitles.has(title)) {
         assignments[title] = flairId.trim();
       }
     }
